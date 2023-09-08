@@ -4,8 +4,8 @@ import mongoose, { HydratedDocument } from 'mongoose';
 export type UserDocument = HydratedDocument<User>;
 
 export enum UserStatus {
-  ACTIVE = 'ACTIVE',
-  BANNED = 'BANNED',
+  ACTIVE = 'active',
+  BANNED = 'banned',
 }
 
 // @Schema({ _id: false })
@@ -15,6 +15,8 @@ export enum UserStatus {
 })
 export class User {
   _id: mongoose.Schema.Types.ObjectId;
+  @Prop({ type: String })
+  name: string;
   @Prop({ type: String, unique: true })
   username: string;
   @Prop({ type: String })
