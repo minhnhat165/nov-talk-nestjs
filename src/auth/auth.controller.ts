@@ -3,7 +3,7 @@ import { Controller, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtUserId } from 'src/common/decorators';
 import { UsersService } from 'src/users/users.service';
-import { SingleResponse } from 'src/common/types';
+import { Response } from 'src/common/types';
 import { User } from 'src/users/schemas/user.schema';
 import { Tokens } from './types';
 
@@ -15,7 +15,7 @@ export class AuthController {
   ) {}
   @Get('remote-login')
   async remoteLogin(@JwtUserId() userId: string): Promise<
-    SingleResponse<{
+    Response<{
       tokens: Tokens;
       user: User;
     }>
@@ -31,7 +31,7 @@ export class AuthController {
     };
   }
   @Get('me')
-  async getProfile(@JwtUserId() userId: string): Promise<SingleResponse<User>> {
+  async getProfile(@JwtUserId() userId: string): Promise<Response<User>> {
     const user = await this.usersService.getProfile(userId);
     return { message: 'ok', data: user };
   }
