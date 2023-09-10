@@ -7,6 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, ObjectId } from 'mongoose';
 import {
   CursorPaginationInfo,
+  FindParams,
   ListQueryParamsCursor,
   Pagination,
 } from 'src/common/types';
@@ -15,6 +16,7 @@ import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { CreateRoomDto } from './dtos';
 import { Room, RoomStatus } from './schemas/room.schema';
+import { async } from 'rxjs';
 @Injectable()
 export class RoomsService {
   constructor(
@@ -150,5 +152,28 @@ export class RoomsService {
       items: rooms,
       pageInfo,
     };
+  }
+  async search({
+    query,
+    limit,
+  }: {
+    query: FilterQuery<Room>;
+    limit: number;
+  }): Promise<Room[]> {
+    const rooms = await this.roomModel
+      .find(query)
+      .limit(limit)
+      .populate(
+        selectPopulateField<Room>(['participants']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'username',
+        ]),
+      )
+      .lean();
+    return rooms;
   }
 }
