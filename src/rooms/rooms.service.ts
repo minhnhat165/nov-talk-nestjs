@@ -1,18 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, ObjectId } from 'mongoose';
+import {
+  CursorPaginationInfo,
+  ListQueryParamsCursor,
+  Pagination,
+} from 'src/common/types';
 import { selectPopulateField } from 'src/common/utils';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { CreateRoomDto } from './dtos';
 import { Room, RoomStatus } from './schemas/room.schema';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
-import {
-  CursorPaginationInfo,
-  ListQueryParams,
-  ListQueryParamsCursor,
-  Pagination,
-} from 'src/common/types';
 @Injectable()
 export class RoomsService {
   constructor(
@@ -40,10 +42,9 @@ export class RoomsService {
     }
 
     const newRoom = new this.roomModel(createRoomDto);
-    newRoom.participants = participants;
+    newRoom.participants = isGroup ? [...new Set(participants)] : participants;
     newRoom.name = createRoomDto.name || '';
     newRoom.isGroup = isGroup;
-
     const room = await this.roomModel.create(newRoom);
     return room;
   }

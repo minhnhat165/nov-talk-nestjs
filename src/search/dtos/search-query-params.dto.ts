@@ -1,5 +1,6 @@
 import { IsInt, IsOptional, IsString, Validate } from 'class-validator';
 
+import { SearchType } from '../types/search-type.type';
 import { SpecialCharacterValidator } from 'src/common/validators';
 import { Transform } from 'class-transformer';
 
@@ -11,4 +12,6 @@ export class SearchQueryParamsDto {
   @IsInt()
   @Transform(({ value }) => parseInt(value))
   limit: number;
+  @IsOptional()
+  type: SearchType;
 }
