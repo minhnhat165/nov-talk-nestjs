@@ -5,10 +5,15 @@ import { CursorPaginationInfo, Pagination, Response } from 'src/common/types';
 import { CreateRoomDto } from './dtos';
 import { RoomsService } from './rooms.service';
 import { Room } from './schemas/room.schema';
+import { MessagesService } from 'src/messages/messages.service';
+import { Message } from 'src/messages/schemas/messages.schema';
 
 @Controller('rooms')
 export class RoomsController {
-  constructor(private readonly roomsService: RoomsService) {}
+  constructor(
+    private readonly roomsService: RoomsService,
+    private readonly messagesService: MessagesService,
+  ) {}
   @Post()
   async createRoom(
     @Body() createRoomDto: CreateRoomDto,
@@ -32,6 +37,20 @@ export class RoomsController {
   ): Promise<Response<Room>> {
     const room = await this.roomsService.findByIdAndUserId(id, userId);
     return { data: room, message: 'Room found' };
+  }
+  @Get(':id/messages')
+  async getMessages(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+    @Query() query: ListQueryParamsCursorDto,
+  ): Promise<Response<Pagination<Message, CursorPaginationInfo>>> {
+    const data =
+      await this.messagesService.findMessagesByRoomIdWithCursorPaginate(
+        id,
+        userId,
+        query,
+      );
+    return { data, message: 'Room found' };
   }
 
   @Delete(':id')

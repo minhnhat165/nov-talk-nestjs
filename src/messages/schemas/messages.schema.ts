@@ -1,19 +1,30 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 
+import { Room } from 'src/rooms/schemas/room.schema';
 import { User } from 'src/users/schemas/user.schema';
 
 export type MessageDocument = HydratedDocument<Message>;
 
 export enum MessageType {
   TEXT = 'text',
-  IMAGE = 'file',
-  MEDIA = 'media',
   CALL = 'call',
-  Link = 'link',
-  VIDEO = 'video',
-  VOICE = 'voice',
+  MEDIA = 'media',
 }
+
+export enum MediaTypes {
+  IMAGE = 'image',
+  VIDEO = 'video',
+  AUDIO = 'audio',
+  DOCUMENT = 'document',
+}
+
+export type Media = {
+  type: MediaTypes;
+  url: string;
+  name: string;
+  size: number;
+};
 
 @Schema({
   timestamps: true,
@@ -24,12 +35,12 @@ export class Message {
   sender: User;
   @Prop({ type: String })
   content: string;
-  @Prop({ type: String, index: true })
+  @Prop({ type: String, index: true, default: MessageType.TEXT })
   type: MessageType;
   @Prop({ type: Array, default: [] })
-  media: string[];
-  // @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Room' })
-  // room: Room;
+  media: Media[];
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Room', index: true })
+  room: Room;
 
   @Prop({
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

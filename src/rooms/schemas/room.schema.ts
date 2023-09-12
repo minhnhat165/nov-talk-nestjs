@@ -34,7 +34,7 @@ export class Room {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: User.name })
   admin: User;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Message.name })
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Message' })
   lastMessage: Message;
 
   @Prop({ type: String, default: RoomStatus.ACTIVE })

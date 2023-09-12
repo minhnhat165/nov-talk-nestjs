@@ -4,6 +4,9 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { EventsGateway } from './events/events.gateway';
+import { EventsModule } from './events/events.module';
 import { MessagesModule } from './messages/messages.module';
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -19,16 +22,19 @@ import { envConfig } from './configs/env.config';
       isGlobal: true,
     }),
     MongooseModule.forRoot(envConfig.database.uri),
+    PassportModule.register({ session: true }),
+    EventEmitterModule.forRoot(),
     UsersModule,
     MessagesModule,
     RoomsModule,
     AuthModule,
-    PassportModule.register({ session: true }),
     SearchModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+    EventsGateway,
     {
       provide: APP_GUARD,
       useClass: AccessTokenGuard,

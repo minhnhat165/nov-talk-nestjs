@@ -3,29 +3,31 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, ObjectId } from 'mongoose';
 import {
   CursorPaginationInfo,
-  FindParams,
   ListQueryParamsCursor,
   Pagination,
 } from 'src/common/types';
 import { selectPopulateField } from 'src/common/utils';
+import { socketConfig } from 'src/configs/socket.config';
+import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { CreateRoomDto } from './dtos';
 import { Room, RoomStatus } from './schemas/room.schema';
-import { async } from 'rxjs';
 @Injectable()
 export class RoomsService {
   constructor(
     private readonly usersService: UsersService,
+    private readonly eventEmitter: EventEmitter2,
     @InjectModel(Room.name) private readonly roomModel: Model<Room>,
   ) {}
   async createRoom(createRoomDto: CreateRoomDto, creatorId: string) {
     const participants = await Promise.all(
-      [creatorId, ...createRoomDto.participants].map((id) =>
+      [...new Set([creatorId, ...createRoomDto.participants])].map((id) =>
         this.usersService.findById(id),
       ),
     );
@@ -71,9 +73,17 @@ export class RoomsService {
     const room = await this.roomModel
       .findOne({
         participants: {
-          $eq: participantIds,
+          $all: participantIds,
+          $size: participantIds.length,
         },
         ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
+      })
+      .populate({
+        path: 'lastMessage',
+        populate: {
+          path: 'sender',
+          select: '_id name avatar email username',
+        },
       })
       .populate(
         selectPopulateField<Room>(['participants']),
@@ -97,6 +107,7 @@ export class RoomsService {
     });
     if (!room) {
       room = await this.findByParticipantIds([id, userId]);
+      console.log(room);
     }
     if (!room) {
       room = new this.roomModel();
@@ -110,10 +121,19 @@ export class RoomsService {
         throw new NotFoundException('Room not found');
       }
     }
-    return await room.populate(
-      selectPopulateField<Room>(['participants']),
-      selectPopulateField<User>(['_id', 'name', 'avatar', 'email', 'username']),
-    );
+    return await room.populate([
+      {
+        path: 'participants',
+        select: '_id name avatar email username',
+      },
+      {
+        path: 'lastMessage',
+        populate: {
+          path: 'sender',
+          select: '_id name avatar email username',
+        },
+      },
+    ]);
   }
 
   async findWithCursorPaginate(
@@ -133,6 +153,13 @@ export class RoomsService {
       .find(query)
       .sort({ newMessageAt: -1 })
       .limit(limit)
+      .populate({
+        path: 'lastMessage',
+        populate: {
+          path: 'sender',
+          select: '_id name avatar email username',
+        },
+      })
       .populate(
         selectPopulateField<Room>(['participants']),
         selectPopulateField<User>([
@@ -173,7 +200,47 @@ export class RoomsService {
           'username',
         ]),
       )
+      .populate({
+        path: 'lastMessage',
+        populate: {
+          path: 'sender',
+          select: '_id name avatar email username',
+        },
+      })
       .lean();
     return rooms;
+  }
+
+  async findById(id: string) {
+    const room = await this.roomModel
+      .findById(id)
+      .populate(
+        selectPopulateField<Room>(['participants']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'username',
+        ]),
+      );
+    return room;
+  }
+
+  async updateRoom(roomId: string, data: Partial<Room>) {
+    const room = await this.findById(roomId);
+    const updateData: Partial<Room> = {
+      ...data,
+      ...(data.lastMessage ? { newMessageAt: new Date() } : {}),
+    };
+    await this.roomModel.updateOne({ _id: roomId }, updateData);
+    const updatePayload: UpdateRoomPayload = {
+      roomId,
+      data: updateData,
+      participants: room?.participants.map((p) => p._id) || [],
+    };
+    this.eventEmitter.emit(socketConfig.events.room.update, {
+      ...updatePayload,
+    });
   }
 }
