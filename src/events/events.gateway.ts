@@ -66,9 +66,12 @@ export class EventsGateway
   }
 
   @OnEvent(socketConfig.events.message.new)
-  async handleNewMessage({ roomId, message }: NewMessagePayload) {
-    console.log('handleNewMessage', roomId, message);
-    this.server.to(roomId).emit(socketConfig.events.message.new, message);
+  async handleNewMessage({ roomId, message, clientTempId }: NewMessagePayload) {
+    console.log('handleNewMessage 🙂', roomId, message, clientTempId);
+    this.server.to(roomId).emit(socketConfig.events.message.new, {
+      message,
+      clientTempId,
+    });
   }
   @OnEvent(socketConfig.events.room.update)
   async handleUpdateRoom({ data, participants, roomId }: UpdateRoomPayload) {
@@ -80,5 +83,34 @@ export class EventsGateway
       roomId,
       data,
     });
+  }
+  @OnEvent(socketConfig.events.message.update)
+  async handleUpdateMessage({ roomId, message }: NewMessagePayload) {
+    this.server.to(roomId).emit(socketConfig.events.message.update, message);
+  }
+  @OnEvent(socketConfig.events.message.remove)
+  async handleRemoveMessage({ message }: NewMessagePayload) {
+    const socketIds = message.removedFor
+      .map((id) => this.clients[id.toString()]?.socketIds || [])
+      .flat();
+    this.server.to(socketIds).emit(socketConfig.events.message.update, message);
+  }
+  @OnEvent(socketConfig.events.room.delete)
+  async handleDeleteRoom({ roomId, participants }: UpdateRoomPayload) {
+    const socketIds = participants
+      .map((p) => this.clients[p.toString()]?.socketIds || [])
+      .flat();
+    this.server.to(socketIds).emit(socketConfig.events.room.delete, roomId);
+  }
+  @OnEvent(socketConfig.events.room.leave)
+  async handleLeaveRoom({
+    roomId,
+    userId,
+  }: {
+    roomId: string;
+    userId: number;
+  }) {
+    const socketIds = this.clients[userId.toString()]?.socketIds || [];
+    this.server.to(socketIds).emit(socketConfig.events.room.leave, roomId);
   }
 }

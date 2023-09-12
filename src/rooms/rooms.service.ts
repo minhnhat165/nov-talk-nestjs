@@ -18,6 +18,7 @@ import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { CreateRoomDto } from './dtos';
 import { Room, RoomStatus } from './schemas/room.schema';
+import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
 @Injectable()
 export class RoomsService {
   constructor(
@@ -54,15 +55,41 @@ export class RoomsService {
   }
 
   async deleteRoom(id: string, userId: string) {
-    const room = await this.roomModel.findOne({
-      _id: id,
-      participants: userId,
-    });
+    const room = await this.findByIdAndUserId(id, userId);
     if (!room) {
       throw new Error('Room not found');
     }
     room.status = RoomStatus.DELETED;
     await room.save();
+    this.eventEmitter.emit(socketConfig.events.room.delete, {
+      roomId: room._id,
+      participants: room.participants.map((p) => p._id),
+    });
+    return room;
+  }
+  async leaveRoom(id: string, userId: string) {
+    const room = await this.findByIdAndUserId(id, userId);
+    if (!room.isGroup) {
+      throw new Error('Cannot leave room not group');
+    }
+    if (!room) {
+      throw new Error('Room not found');
+    }
+    room.participants = room.participants.filter(
+      (p) => String(p._id) !== userId,
+    );
+    await room.save();
+    this.eventEmitter.emit(socketConfig.events.room.leave, {
+      roomId: room._id,
+      userId,
+    });
+    this.eventEmitter.emit(socketConfig.events.room.update, {
+      roomId: room._id,
+      participants: room.participants.map((p) => p._id),
+      data: {
+        participants: room.participants,
+      },
+    });
     return room;
   }
 
@@ -147,6 +174,9 @@ export class RoomsService {
         $lt: cursor ? new Date(cursor).toISOString() : new Date().toISOString(),
       },
       participants: userId,
+      status: {
+        $ne: RoomStatus.DELETED,
+      },
     };
 
     const rooms = await this.roomModel
@@ -176,7 +206,10 @@ export class RoomsService {
     };
 
     return {
-      items: rooms,
+      items: rooms.map((room) => ({
+        ...room.toObject(),
+        lastMessage: convertMessageRemoved(room.lastMessage, userId),
+      })),
       pageInfo,
     };
   }
@@ -229,14 +262,11 @@ export class RoomsService {
 
   async updateRoom(roomId: string, data: Partial<Room>) {
     const room = await this.findById(roomId);
-    const updateData: Partial<Room> = {
-      ...data,
-      ...(data.lastMessage ? { newMessageAt: new Date() } : {}),
-    };
-    await this.roomModel.updateOne({ _id: roomId }, updateData);
+
+    await this.roomModel.updateOne({ _id: roomId }, data);
     const updatePayload: UpdateRoomPayload = {
       roomId,
-      data: updateData,
+      data,
       participants: room?.participants.map((p) => p._id) || [],
     };
     this.eventEmitter.emit(socketConfig.events.room.update, {

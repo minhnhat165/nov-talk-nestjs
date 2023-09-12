@@ -61,4 +61,12 @@ export class RoomsController {
     await this.roomsService.deleteRoom(id, userId);
     return { message: 'Room deleted', data: null };
   }
+  @Delete(':id/leave')
+  async leaveRoom(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ): Promise<Response<null>> {
+    await this.roomsService.leaveRoom(id, userId);
+    return { message: 'Room leaved', data: null };
+  }
 }

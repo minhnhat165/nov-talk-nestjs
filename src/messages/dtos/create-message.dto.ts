@@ -6,4 +6,5 @@ export class CreateMessageDto {
   media: Media[];
   @IsMongoId()
   roomId: string;
+  clientTempId: string;
 }
