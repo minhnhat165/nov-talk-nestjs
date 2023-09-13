@@ -61,10 +61,10 @@ export class EventsGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() roomId: string,
   ) {
-    console.log('handleJoinRoom', roomId);
+    console.log('handleJoinChat', roomId);
     client.join(roomId);
   }
-  @SubscribeMessage(socketConfig.events.room.leave)
+  @SubscribeMessage(socketConfig.events.chat.leave)
   handleLeaveChat(
     @ConnectedSocket() client: Socket,
     @MessageBody() roomId: string,
