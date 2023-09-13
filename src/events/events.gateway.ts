@@ -56,13 +56,21 @@ export class EventsGateway
     };
   }
 
-  @SubscribeMessage(socketConfig.events.room.join)
-  handleJoinRoom(
+  @SubscribeMessage(socketConfig.events.chat.join)
+  handleJoinChat(
     @ConnectedSocket() client: Socket,
     @MessageBody() roomId: string,
   ) {
     console.log('handleJoinRoom', roomId);
     client.join(roomId);
+  }
+  @SubscribeMessage(socketConfig.events.room.leave)
+  handleLeaveChat(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() roomId: string,
+  ) {
+    console.log('handleLeaveChat', roomId);
+    client.leave(roomId);
   }
 
   @OnEvent(socketConfig.events.message.new)
